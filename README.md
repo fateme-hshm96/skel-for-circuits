@@ -1,6 +1,6 @@
 # Graph Skeletonization
 
-This project implements graph skeletonization using the Mapper algorithm [[1]](#1) from Topological Data Analysis. It is focused on Attribution Graphs and Circuit Analysis.
+This project implements graph skeletonization using the Mapper algorithm [[1]](#1) from Topological Data Analysis for the purpose of circuit analysis. It applies a real-valued function on the nodes of the graph, which combines different topological lenses, each focusing on a specific feature to preserve in the output graph.
 
 ## Structure
 - `data/`: Graph data loading utilities
