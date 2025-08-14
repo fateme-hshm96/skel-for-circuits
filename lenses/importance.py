@@ -1,62 +1,56 @@
 from .base import LensFunction
 from data.loaders import get_output_nodes
 import networkx as nx
-from collections import deque
-import numpy as np
+from collections import deque, defaultdict
 
 class ImportanceLens(LensFunction):
     def __init__(self):
         self.cache = {}  # Cache for graph computations
     
     def __call__(self, G, node):
-        # Check if we've computed paths for this graph
+        # Check if we've computed scores for this graph
         if id(G) not in self.cache:
-            self._compute_shortest_paths(G)
+            self._compute_scores(G)
         
-        # Get cached results
-        _, path_influence = self.cache[id(G)]
-        
-        # Return influence sum if path exists, else 0
-        return path_influence.get(node, 0.0)
+        # Return cached score for the node
+        scores = self.cache[id(G)]
+        return scores.get(node, 0.0)
     
-    def _compute_shortest_paths(self, G):
-        """Precompute shortest paths to output nodes for all reachable nodes."""
-        # Create reversed graph for path finding
-        Gr = G.reverse()
-        dist = {}
-        path_influence = {}
-        queue = deque()
-        
+    def _compute_scores(self, G):
+        """Compute the score for all nodes based on paths to output nodes."""
         # Get output nodes
         output_nodes = get_output_nodes(G)
-        # E.g. ['27_575_42', '27_3520_42', '27_7253_42', '27_948_42', '27_573_42', '27_752_42', '27_578_42', '27_2379_42']
-
-        # Initialize BFS with output nodes
-        for node in output_nodes:
-            dist[node] = 0
-            path_influence[node] = G.nodes[node]['influence']
-            if not path_influence[node]: # output node
-                path_influence[node] = 10000000
-            queue.append(node)
         
-        # BFS in reversed graph (which corresponds to paths to outputs)
-        while queue:
-            u = queue.popleft()
-            current_dist = dist[u]
-            current_influence = path_influence[u]
-            
-            # print(f"current_influence: {current_influence}")
+        # Initialize scores
+        scores = defaultdict(float)
+        
+        # For each output node, compute shortest paths to it
+        for output in output_nodes:
+            scores[output] = 1000 # set the importance of output nodes to a big number
 
-            for v in Gr.neighbors(u):
-                # Skip if we've already visited with a shorter path
-                if v in dist and dist[v] <= current_dist + 1:
+            # Use BFS to get shortest path lengths from all nodes to this output
+            lengths, paths = nx.single_target_shortest_path_length(G, output), nx.single_target_shortest_path(G, output)
+            
+            for node, path_length in lengths.items():
+                if path_length == 0:
+                    # Output node itself contributes 0 influence
                     continue
                 
-                # Update distance and influence
-                new_influence = G.nodes[v]['influence'] + current_influence
-                dist[v] = current_dist + 1
-                path_influence[v] = new_influence
-                queue.append(v)
+                path_nodes = paths[node]  # nodes along the path from node -> output
+                influence_sum = 0
+                for n in path_nodes:
+                    if G.nodes[n].get('influence', 0.0) is not None: # is null for output nodes
+                        influence_sum += G.nodes[n].get('influence', 0.0)
+                # influence_sum = sum(G.nodes[n].get('influence', 0.0) for n in path_nodes)
+
+                normalized_influence = influence_sum / path_length  # normalize by path length
+                
+                # Sum across all output nodes
+                scores[node] += normalized_influence
+                # if str(node).startswith("E") or str(node).startswith("27"):
+                #     print(node, scores[node], path_length)
         
-        # Cache results for this graph
-        self.cache[id(G)] = (dist, path_influence)
+        print(len(G.nodes), len(list(scores.keys())), len(output_nodes))
+
+        # Cache results
+        self.cache[id(G)] = scores

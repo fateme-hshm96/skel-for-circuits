@@ -65,6 +65,7 @@ class Trainer:
                 best_score = score
                 best_weights = weights
                 best_metrics = metrics
+                
             print("Best weight combination so far:")
             print(best_weights)
             print("Metrics:")

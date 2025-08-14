@@ -13,4 +13,4 @@ Thumbs.db
 *.log
 *.tmp
 *.cache/
-
+data/argo_lite_viz.py

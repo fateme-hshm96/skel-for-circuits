@@ -17,6 +17,7 @@ class MapperPipeline:
             for lens, weight in zip(self.lenses, self.weights):
                 combined += weight * lens(G, node)
             lens_values[node] = combined
+        # print(lens_values.keys())
         return lens_values
     
     def __call__(self, G):
@@ -43,6 +44,7 @@ class MapperPipeline:
             for comp in nx.connected_components(subgraph.to_undirected()):
                 clusters.append(list(comp))
         
+        
         # Create skeleton graph
         skeleton = nx.Graph()
         for i, cluster in enumerate(clusters):
@@ -51,11 +53,11 @@ class MapperPipeline:
         # Add edges between clusters
         for i in range(len(clusters)):
             for j in range(i+1, len(clusters)):
-                if any(G.has_edge(u, v) for u in clusters[i] for v in clusters[j]):
-                    skeleton.add_edge(i, j)
-                # weight = sum(1 for u in clusters[i] for v in clusters[j] if G.has_edge(u, v))
-                # if weight > 0:
-                #     skeleton.add_edge(i, j, weight=weight)
+                # if any(G.has_edge(u, v) for u in clusters[i] for v in clusters[j]):
+                #     skeleton.add_edge(i, j)
+                weight = sum(G[u][v].get('weight', 1.0) for u in clusters[i] for v in clusters[j] if G.has_edge(u, v))
+                if weight > 0:
+                    skeleton.add_edge(i, j, weight=weight)
 
 
         return skeleton

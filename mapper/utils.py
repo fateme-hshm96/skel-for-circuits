@@ -1,5 +1,26 @@
 import numpy as np
+from lenses.importance import ImportanceLens
 
+def prune_graph_by_importance(G, prune_fraction=0.1):
+    lens = ImportanceLens()
+    scores = {node: lens(G, node) for node in G.nodes()}
+    
+    # Determine threshold
+    n_remove = int(len(scores) * prune_fraction)
+    if n_remove == 0:
+        return G.copy()  # nothing to remove
+    
+    # Sort nodes by score (ascending)
+    nodes_sorted = sorted(scores.items(), key=lambda x: x[1])
+    nodes_to_remove = [node for node, _ in nodes_sorted[:n_remove]]
+    
+    # Remove nodes
+    G_pruned = G.copy()
+    G_pruned.remove_nodes_from(nodes_to_remove)
+    
+    return G_pruned
+
+    
 def create_cover(points, n_intervals=10, overlap=0.2):
     min_val, max_val = np.min(points), np.max(points)
     range_val = max_val - min_val

@@ -8,6 +8,7 @@ from lenses.depth import DepthLens
 from lenses.supernode import SupernodeLens
 from lenses.importance import ImportanceLens
 from training.trainer import Trainer
+from mapper.utils import prune_graph_by_importance
 
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -31,6 +32,9 @@ def main():
                         help="Overlap fraction in cover")
     parser.add_argument("--lambda_param", type=float, default=0.5,
                         help="Combining faithfulness and minimality")
+    parser.add_argument("--prune_fraction", type=float, default=0.5,
+                        help="Fraction of nodes with lowest importance scores to be remove from the graph")
+                        
     # parser.add_argument("--weights", required=True,
     #                     help="Path to JSON file with lens weights")
     # parser.add_argument("--supernode_threshold", type=float, default=0.7,
@@ -59,11 +63,17 @@ def main():
         # Load training graphs
         print("Loading training graphs...")
         train_graphs = load_all_graphs(args.train_data_dir)
-        print(f"Loaded {len(train_graphs)} training graphs")
+        
+        print(f"Pruning: Removing {args.prune_fraction*100}% of nodes with lowest importance scores to be remove from the graph...")
+        pruned_train_graphs = []
+        for G in train_graphs:
+            pruned_train_graphs.append(prune_graph_by_importance(G, args.prune_fraction))
+
+        print(f"Loaded {len(pruned_train_graphs)} training graphs")
 
 
         # Train weights
-        trainer = Trainer(train_graphs, lenses, args.num_intervals, args.overlap, args.lambda_param)
+        trainer = Trainer(pruned_train_graphs, lenses, args.num_intervals, args.overlap, args.lambda_param)
 
         # Generate weight grid (normalized to sum to 1)
         weights = np.linspace(0, 1, GRID_STEPS)
@@ -124,7 +134,12 @@ def main():
     print("Loading test graphs...")
     test_graphs = [load_graph(args.graph)]
     print(f"Loaded {len(test_graphs)} test graphs")
-    
+
+    print(f"Pruning: Removing {args.prune_fraction*100}% of nodes with lowest importance scores to be remove from the graph...")
+    pruned_test_graphs = []
+    for G in test_graphs:
+        pruned_test_graphs.append(prune_graph_by_importance(G, args.prune_fraction))
+        
     weights_path = "training/training_results.json"
     # Load best weights from training
     with open(weights_path, 'r') as f:
@@ -133,8 +148,8 @@ def main():
     
     # Apply to each test graph
     print("Generating skeletons...")
-    for i, graph in enumerate(test_graphs):
-        print(f"Processing graph {i+1}/{len(test_graphs)}")
+    for i, graph in enumerate(pruned_test_graphs):
+        print(f"Processing graph {i+1}/{len(pruned_test_graphs)}")
         
         # Apply mapper pipeline with trained weights
         skeleton = apply_trained_weights(
@@ -146,8 +161,9 @@ def main():
         )
         
         # Save skeleton
-        output_path = os.path.join("data/outputs/", f"skeleton_{i}.json")
-        save_skeleton_json(skeleton, output_path)
+        base_name = os.path.splitext(os.path.basename(args.graph))[0]
+        output_path = os.path.join("data/outputs/", f"{base_name}_skeleton.json")
+        save_skeleton_json(skeleton, graph, output_path)
         print(f"Saved skeleton to {output_path}")
     
     print("\n=== PROCESS COMPLETE ===")
@@ -158,6 +174,7 @@ if __name__ == "__main__":
     main()
 
 
+## Call Seq.
 # create lenses                                                     lenses/
 # load graphs                                                       data/loaders.py
 # create trainer                                                    training/trainer.py
