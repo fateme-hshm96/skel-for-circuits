@@ -2,9 +2,9 @@
 
 This project implements graph skeletonization using the Mapper algorithm [[1]](#1) from Topological Data Analysis for the purpose of circuit analysis. It applies a real-valued function on the nodes of the graph, which combines different topological lenses, each focusing on a specific feature to preserve in the output graph.
 
-- **\( f_{\text{depth}} \)**: Measures the vertical position of node \( v \) relative to the output node, given by the length of the shortest path from \( v \) to the output, reinforcing a tree-like hierarchy.  
-- **\( f_{\text{supernode}} \)**: Estimates the probability that node \( v \) belongs to a given candidate supernode, inferred from precomputed semantic clusters using the nodes’ free-text labels.  
-- **\( f_{\text{importance}} \)**: Quantifies the influence of node \( v \) on the output, based on the paths connecting \( v \) to the output node.  
+- $f_{depth}$: Measures the vertical position of node \( v \) relative to the output node, given by the length of the shortest path from \( v \) to the output, reinforcing a tree-like hierarchy.  
+- $f_{supernode}$: Estimates the probability that node \( v \) belongs to a given candidate supernode, inferred from precomputed semantic clusters using the nodes’ free-text labels.  
+- $f_{importance}$: Quantifies the influence of node \( v \) on the output, based on the paths connecting \( v \) to the output node.  
 
 
 ## Structure
