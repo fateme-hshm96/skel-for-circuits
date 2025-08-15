@@ -37,6 +37,29 @@ def load_graph(file_path):
     return G
 
 
+def extract_features_and_errors(G):
+    """Extract selected_features and selected_errors from the graph.
+    
+    - selected_features: List[(layer, ctx_idx, feature)] for nodes where feature_type == "cross layer transcoder".
+    - selected_errors: List[(layer, ctx_idx)] for nodes where feature_type == "mlp reconstruction error".
+    """
+    selected_features = []
+    selected_errors = []
+
+    for node_id, attrs in G.nodes(data=True):
+        feature_type = attrs.get("feature_type")
+        layer = attrs.get("layer")
+        ctx_idx = attrs.get("ctx_idx")
+
+        if feature_type == "cross layer transcoder":
+            feature = attrs.get("feature")
+            selected_features.append((layer, ctx_idx, feature))
+        elif feature_type == "mlp reconstruction error":
+            selected_errors.append((layer, ctx_idx))
+
+    return selected_features, selected_errors
+    
+
 def load_all_graphs(directory):
     """Load all JSON graphs from a directory."""
     graphs = []
