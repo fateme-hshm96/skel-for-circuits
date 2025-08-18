@@ -53,11 +53,11 @@ class Trainer:
         
         
         for weights in tqdm(weight_grid):
-            # print(weights)
+            print("Trainer | Grid Search - weights:", weights)
             if len(weights) != len(self.lenses) or sum(weights) == 0:
                 continue
             
-            metrics = self.objective(weights) # skeleton is not used
+            metrics = self.objective(weights) 
             score = metrics["score"]
             results.append((weights, metrics))
             

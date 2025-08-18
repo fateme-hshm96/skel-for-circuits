@@ -2,6 +2,7 @@ import networkx as nx
 import numpy as np
 from sklearn.cluster import DBSCAN
 from .utils import create_cover
+from .utils import prune_graph_by_lens_combination
 
 class MapperPipeline:
     def __init__(self, lenses, weights, n_intervals=10, overlap=0.2):
@@ -9,9 +10,14 @@ class MapperPipeline:
         self.weights = weights
         self.n_intervals = n_intervals
         self.overlap = overlap
-        
+    
+    def _prune(self, G):
+        G = prune_graph_by_lens_combination(G, self.lenses, self.weights)
+        return G
+
     def _compute_lens(self, G):
         lens_values = {}
+        print("Pipeline | pruned graph:", G)
         for node in G.nodes():
             combined = 0.0
             for lens, weight in zip(self.lenses, self.weights):
@@ -21,6 +27,7 @@ class MapperPipeline:
         return lens_values
     
     def __call__(self, G):
+        G = self._prune(G)
         lens_values = self._compute_lens(G)
         points = np.array(list(lens_values.values())).reshape(-1, 1)
         intervals = create_cover(points, n_intervals=self.n_intervals, overlap=self.overlap)

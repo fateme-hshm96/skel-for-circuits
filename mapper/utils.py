@@ -1,9 +1,35 @@
 import numpy as np
 from lenses.importance import ImportanceLens
 
-def prune_graph_by_importance(G, prune_fraction=0.1):
-    lens = ImportanceLens()
+def prune_graph_by_one_lens(G, lens, prune_fraction=0.1):
     scores = {node: lens(G, node) for node in G.nodes()}
+    
+    # Determine threshold
+    n_remove = int(len(scores) * prune_fraction)
+    if n_remove == 0:
+        return G.copy()  # nothing to remove
+    
+    # Sort nodes by score (ascending)
+    nodes_sorted = sorted(scores.items(), key=lambda x: x[1])
+    nodes_to_remove = [node for node, _ in nodes_sorted[:n_remove]]
+    
+    # Remove nodes
+    G_pruned = G.copy()
+    G_pruned.remove_nodes_from(nodes_to_remove)
+    
+    return G_pruned
+
+
+
+def prune_graph_by_lens_combination(G, lenses, weights, prune_fraction=0.1):
+
+    # scores = {node: lens(G, node) for node in G.nodes()}
+    scores = {}
+    for node in G.nodes():
+        combined = 0.0
+        for lens, weight in zip(lenses, weights):
+            combined += weight * lens(G, node)
+        scores[node] = combined
     
     # Determine threshold
     n_remove = int(len(scores) * prune_fraction)

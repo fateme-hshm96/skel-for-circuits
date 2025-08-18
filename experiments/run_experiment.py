@@ -1,6 +1,7 @@
 import os
 import json
 import numpy as np
+import math
 import argparse
 from data.loaders import load_graph, load_all_graphs, save_skeleton_json
 from apply.apply_pipeline import apply_trained_weights
@@ -8,19 +9,68 @@ from lenses.depth import DepthLens
 from lenses.supernode import SupernodeLens
 from lenses.importance import ImportanceLens
 from training.trainer import Trainer
-from mapper.utils import prune_graph_by_importance
+from mapper.utils import prune_graph_by_lens_combination, prune_graph_by_one_lens
 
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 
-def main():
+GRID_STEPS = 5
 
-    GRID_STEPS = 5
+
+def build_weights(start, end):
+    # Generate weight grid (normalized to sum to 1)
+    weights = np.linspace(start, end, GRID_STEPS)
+    weight_grid = []
+    
+    for w1 in weights:
+        for w2 in weights:
+            for w3 in weights:
+                total = w1 + w2 + w3
+                if total > 0:  # Avoid division by zero
+                    normalized = [w1/total, w2/total, w3/total]
+                    if normalized not in weight_grid:
+                        weight_grid.append(normalized)
+    return weight_grid
+
+
+def refine_weights(b1, b2, b3, max_combinations, r=0.05):
+    """Refined search around best weights (b1, b2, b3)"""
+    # Adaptive radius based on distance from boundaries
+    radius = r/2 if min(b1, b2, b3) < r or max(b1, b2, b3) > 1-r else r
+
+    steps = int(max_combinations ** (1/3)) + 1
+    
+    # Generate grid around best point
+    ranges = [np.linspace(max(0, b - radius), min(1, b + radius), steps) 
+              for b in [b1, b2, b3]]
+    
+    # Create normalized combinations
+    combinations = []
+    for w1 in ranges[0]:
+        for w2 in ranges[1]:
+            for w3 in ranges[2]:
+                total = w1 + w2 + w3
+                if total > 0:
+                    combinations.append([w1/total, w2/total, w3/total])
+    
+    # Remove duplicates and limit to max_combinations
+    unique = []
+    for combo in combinations:
+        if not any(all(abs(a-b) < 1e-6 for a, b in zip(combo, existing)) 
+                  for existing in unique):
+            unique.append(combo)
+            if len(unique) >= max_combinations:
+                break
+    
+    return unique
+
+
+def main():
 
     parser = argparse.ArgumentParser(
         description="Apply trained mapper skeletonization to a graph"
     )
-    parser.add_argument("--do_train", type=bool, default=False,
+    parser.add_argument("--do_pretrain", type=bool, default=False,
                         help="Train the weights for combining lenses")
     parser.add_argument("--graph", required=True,
                         help="Path to input graph JSON")
@@ -46,7 +96,7 @@ def main():
 
     args = parser.parse_args()
 
-    if args.do_train and not args.train_data_dir:
+    if args.do_pretrain and not args.train_data_dir:
         parser.error("--train_data_dir is required when --do_train is specified.")
     
     # Initialize lenses
@@ -57,36 +107,27 @@ def main():
     ]
     
     # ----------------------------
-    # --- PHASE 1: TRAINING ---
-    if args.do_train:
+    # --- PHASE 1: PRE-TRAINING ---
+    if args.do_pretrain:
         print("---> Start Training...")
         # Load training graphs
         print("Loading training graphs...")
         train_graphs = load_all_graphs(args.train_data_dir)
         
-        print(f"Pruning: Removing {args.prune_fraction*100}% of nodes with lowest importance scores to be remove from the graph...")
-        pruned_train_graphs = []
-        for G in train_graphs:
-            pruned_train_graphs.append(prune_graph_by_importance(G, args.prune_fraction))
+        # print(f"Pruning: Removing {args.prune_fraction*100}% of nodes with lowest importance scores to be remove from the graph...")
+        # pruned_train_graphs = []
+        # for G in train_graphs:
+        #     pruned_train_graphs.append(prune_graph_by_one_lens(G, lenses[-1], args.prune_fraction))
 
-        print(f"Loaded {len(pruned_train_graphs)} training graphs")
+        # print(f"Loaded {len(pruned_train_graphs)} training graphs")
 
 
         # Train weights
-        trainer = Trainer(pruned_train_graphs, lenses, args.num_intervals, args.overlap, args.lambda_param)
+        # trainer = Trainer(pruned_train_graphs, lenses, args.num_intervals, args.overlap, args.lambda_param)
+        trainer = Trainer(train_graphs, lenses, args.num_intervals, args.overlap, args.lambda_param)
+        
+        weight_grid = build_weights(0, 1)
 
-        # Generate weight grid (normalized to sum to 1)
-        weights = np.linspace(0, 1, GRID_STEPS)
-        weight_grid = []
-        
-        for w1 in weights:
-            for w2 in weights:
-                for w3 in weights:
-                    total = w1 + w2 + w3
-                    if total > 0:  # Avoid division by zero
-                        normalized = [w1/total, w2/total, w3/total]
-                        weight_grid.append(normalized)
-        
         print(f"Generated {len(weight_grid)} weight combinations")
         
         # Perform grid search
@@ -96,7 +137,7 @@ def main():
 
         best_weights, best_metrics, all_results = trainer.grid_search(weight_grid)
 
-    # Save results
+        # Save results
         results = {
             "best_weights": {
                 "DepthLens": best_weights[0],
@@ -129,27 +170,37 @@ def main():
     # ----------------------------
     # --- PHASE 2: APPLICATION ---
     print("---> Skeletonizing...")
-    
+                    
     # Load test graphs
     print("Loading test graphs...")
     test_graphs = [load_graph(args.graph)]
     print(f"Loaded {len(test_graphs)} test graphs")
 
-    print(f"Pruning: Removing {args.prune_fraction*100}% of nodes with lowest importance scores to be remove from the graph...")
-    pruned_test_graphs = []
-    for G in test_graphs:
-        pruned_test_graphs.append(prune_graph_by_importance(G, args.prune_fraction))
+    # print(f"Pruning: Removing {args.prune_fraction*100}% of nodes with lowest importance scores to be remove from the graph...")
+    # pruned_test_graphs = []
+    # for G in test_graphs:
+    #     pruned_test_graphs.append(prune_graph_by_importance(G, args.prune_fraction))
         
     weights_path = "training/training_results.json"
     # Load best weights from training
     with open(weights_path, 'r') as f:
         weights_data = json.load(f)
         best_weights = weights_data["best_weights"]
+
+
+    refined_weights_list = refine_weights(best_weights[0], best_weights[1], best_weights[2], max_combinations=10, r=0.1)
+    print(refined_weights_list)
+
+    # Perform grid search
+    print("Starting grid search...")
+    trainer = Trainer(test_graphs, lenses, args.num_intervals, args.overlap, args.lambda_param)
+    best_weights, best_metrics, all_results = trainer.grid_search(refined_weights_list)
+    # best_weights, best_score = [0.2, 0.4, 0.4], 0.912
     
     # Apply to each test graph
     print("Generating skeletons...")
-    for i, graph in enumerate(pruned_test_graphs):
-        print(f"Processing graph {i+1}/{len(pruned_test_graphs)}")
+    for i, graph in enumerate(test_graphs):
+        print(f"Processing graph {i+1}/{len(test_graphs)}")
         
         # Apply mapper pipeline with trained weights
         skeleton = apply_trained_weights(
