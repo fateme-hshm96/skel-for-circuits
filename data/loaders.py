@@ -37,7 +37,7 @@ def load_graph(file_path):
     return G
 
 
-def extract_features_and_errors(G):
+def extract_all_features_and_errors(G):
     """Extract selected_features and selected_errors from the graph.
     
     - selected_features: List[(layer, ctx_idx, feature)] for nodes where feature_type == "cross layer transcoder".
@@ -58,7 +58,38 @@ def extract_features_and_errors(G):
             selected_errors.append((layer, ctx_idx))
 
     return selected_features, selected_errors
+
+def extract_per_layer_features_and_errors(G):
+    """Extract selected_features and selected_errors from the graph, grouped by layer.
     
+    Returns:
+        List[Dict]: A list where index == layer number.
+        Each element is a dict with:
+            - 'feature_nodes': [(layer, ctx_idx, feature), ...]
+            - 'error_nodes': [(layer, ctx_idx), ...]
+    """
+    # First, find how many layers exist
+    max_layer = max(attrs["layer"] for _, attrs in G.nodes(data=True))
+
+    # Initialize structure
+    per_layer_data = [
+        {"feature_nodes": [], "error_nodes": []} for _ in range(max_layer + 1)
+    ]
+
+    # Fill in features and errors
+    for node_id, attrs in G.nodes(data=True):
+        feature_type = attrs.get("feature_type")
+        layer = attrs.get("layer")
+        ctx_idx = attrs.get("ctx_idx")
+
+        if feature_type == "cross layer transcoder":
+            feature = attrs.get("feature")
+            per_layer_data[layer]["feature_nodes"].append((layer, ctx_idx, feature))
+        elif feature_type == "mlp reconstruction error":
+            per_layer_data[layer]["error_nodes"].append((layer, ctx_idx))
+
+    return per_layer_data
+
 
 def load_all_graphs(directory):
     """Load all JSON graphs from a directory."""
