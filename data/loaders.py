@@ -127,6 +127,22 @@ def get_output_nodes(G):
     return output_nodes
 
 
+def get_input_nodes(G):
+    """Identify input nodes based on node_id pattern."""
+    input_nodes = []
+    
+    for node in G.nodes():
+        try:
+            prefix = node.split('_')[0]
+        except:
+            prefix = -1
+        if prefix == "E":
+            input_nodes.append(node)
+    
+    return input_nodes
+
+
+
 # def save_skeleton_json(skeleton_graph, file_path):
 #     """
 #     Save skeleton graph to JSON format.
