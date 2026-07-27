@@ -9,7 +9,7 @@ The resulting skeleton is saved back into the original graph format via `qParams
 ## How It Works
 
 ### 1) Pruning (node reduction)
-Pruning is implemented in [graph_skel/mapper/utils.py](graph_skel/mapper/utils.py) and is invoked by both pipeline variants via `prune_graph`.
+Pruning is implemented in [mapper/utils.py](mapper/utils.py) and is invoked by both pipeline variants via `prune_graph`.
 
 Current behavior:
 - Removes MLP reconstruction error nodes.
