@@ -31,7 +31,7 @@ Groups nodes by asking an LLM to form semantically coherent clusters in a single
 - Sends all node labels (indexed) to the LLM with a structured prompt.
 - LLM returns group assignments and a concise label for each cluster.
 - Accepts an optional `--n_groups_hint` to softly guide the number of groups.
-- Implemented in [graph_skel/mapper/llm_grouping.py](graph_skel/mapper/llm_grouping.py).
+- Implemented in [mapper/llm_grouping.py](mapper/llm_grouping.py).
 
 Both pipelines produce a skeleton `nx.Graph` with the same structure (nodes carry `nodes=[...]` membership and `label`), so all downstream code is interchangeable.
 
