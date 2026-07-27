@@ -47,16 +47,16 @@ LLMs are used in **two separate roles**, each independently switchable between c
 
 > **⚠️ API key required for closed-source models.**
 > By default all three LLM roles route requests through the OpenAI API.
-> You must set `OPENAI_API_KEY` at the top of [graph_skel/data/supernode_label.py](graph_skel/data/supernode_label.py) before running.
+> You must set `OPENAI_API_KEY` at the top of [data/supernode_label.py](data/supernode_label.py) before running.
 > If you don't have an OpenAI key, pass `--open_source_labeling` and/or `--open_source_grouping` to use a local open-weight model (e.g. DeepSeek, Qwen, Llama) instead — no API key needed, but a GPU with sufficient VRAM is required.
 
-Model configuration (model names, API key) lives in [graph_skel/data/supernode_label.py](graph_skel/data/supernode_label.py) (`CLOSED_SOURCE_MODEL`, `OPEN_SOURCE_MODEL`, `OPENAI_API_KEY`).
+Model configuration (model names, API key) lives in [data/supernode_label.py](data/supernode_label.py) (`CLOSED_SOURCE_MODEL`, `OPEN_SOURCE_MODEL`, `OPENAI_API_KEY`).
 
 ### SupernodeLens
-Implemented in [graph_skel/lenses/supernode.py](graph_skel/lenses/supernode.py). Encodes each node label with a sentence-transformer model, then reduces the embeddings to a single scalar via PCA. This 1D value is used as the clustering coordinate inside `MapperPipeline`. Accepts `use_closed_source_labeling` to control which LLM is used for re-labeling nodes whose label is empty.
+Implemented in [lenses/supernode.py](lenses/supernode.py). Encodes each node label with a sentence-transformer model, then reduces the embeddings to a single scalar via PCA. This 1D value is used as the clustering coordinate inside `MapperPipeline`. Accepts `use_closed_source_labeling` to control which LLM is used for re-labeling nodes whose label is empty.
 
 ### TopImpactScorer
-Implemented in [graph_skel/mapper/top_impact.py](graph_skel/mapper/top_impact.py). Not a lens — a standalone node-selection function that scores every node in the graph by its causal importance for the predicted output token. Used by both pipelines to decide which nodes survive pruning.
+Implemented in [mapper/top_impact.py](mapper/top_impact.py). Not a lens — a standalone node-selection function that scores every node in the graph by its causal importance for the predicted output token. Used by both pipelines to decide which nodes survive pruning.
 
   **How it works (high level):**
   1. **Identify sinks.** The top-predicted logit node is the primary target; high-probability alternative logits are also included as contrastive sinks.
